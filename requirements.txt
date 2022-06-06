@@ -1,0 +1,7 @@
+manim
+matplotlib
+numpy
+scipy
+seaborn
+--extra-index-url https://download.pytorch.org/whl/cu113
+torch
