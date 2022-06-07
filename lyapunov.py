@@ -104,6 +104,7 @@ class ContinuousLyapunov(ThreeDScene):
             FadeOut(equilibrium_text),
             runtime=3
         )
+        self.wait(2)
 
         ax_no_label = Axes(
             x_range=[-1, 1, 0.5],
@@ -116,7 +117,8 @@ class ContinuousLyapunov(ThreeDScene):
 
         self.play(Transform(self.ax, ax_no_label),
                   self.dot1.animate.move_to(ax_no_label.c2p(*equilibrium1)),
-                  self.dot2.animate.move_to(ax_no_label.c2p(*equilibrium2)))
+                  self.dot2.animate.move_to(ax_no_label.c2p(*equilibrium2)),
+                  runtime=2)
         self.wait(2)
 
     def add_vector_field(self):
