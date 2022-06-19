@@ -11,11 +11,12 @@ class ContinuousLyapunov(ThreeDScene):
     # 2. Equation
     # 3. Equilibrium
     # 4. Dynamics
-    # 5. Transition to 3D
-    # 6. Lyapunov in 3D
-    # 7. StreamLines on Lyapunov surface
-    # 8. Derive negative gradient
-    # 9. Region of attraction
+    # 5. Show stable equilibrium
+    # 6. Transition to 3D
+    # 7. Lyapunov in 3D
+    # 8. StreamLines on Lyapunov surface
+    # 9. Derive negative gradient
+    # 10. Region of attraction
 
     def construct(self):
         self.play_intro()
@@ -23,10 +24,10 @@ class ContinuousLyapunov(ThreeDScene):
         self.add_ode()
         self.add_equilibrium()
         self.add_vector_field()
+        self.show_stable()
+        self.transition_to_3d()
+        self.add_lyapunov()
 
-        # self.move_camera(phi=PI / 3)
-        # self.move_camera(frame_center=[0, 0, 2.0])
-        #
         # # TODO: Add Lyapunov (in 3D)
         #
         # w, h = self.region_of_attraction()
@@ -54,6 +55,7 @@ class ContinuousLyapunov(ThreeDScene):
     def add_ode(self):
         system = Text('System', font_size=24).shift(3 * UP + 3 * LEFT)
         self.ode = MathTex(r'\dot{x} &= -x + y^2 \\ \dot{y} &= -2y + 3x^2').next_to(system, DOWN)
+        self.camera.add_fixed_in_frame_mobjects(system, self.ode)
 
         self.play(FadeIn(system, self.ode))
         self.wait(2)
@@ -79,14 +81,16 @@ class ContinuousLyapunov(ThreeDScene):
             runtime=4)
         self.wait(3)
 
-        self.ax = Axes(
+        self.ax = ThreeDAxes(
             x_range=[-1, 1, 0.5],
             y_range=[-1, 1, 0.5],
             x_length=2,
             y_length=2,
             tips=False,
-            axis_config=dict(tip_width=0.05, tip_height=0.05, include_numbers=True, font_size=12, line_to_number_buff=0.15)
+            axis_config=dict(tip_width=0.05, tip_height=0.05, include_numbers=True, font_size=12, line_to_number_buff=0.15),
+            z_axis_config=dict(stroke_opacity=0.0)
         ).scale(self.scaling_factor).shift(3 * RIGHT)
+        self.ax.z_index = 1
 
         self.play(FadeIn(self.ax), runtime=2)
 
@@ -95,8 +99,8 @@ class ContinuousLyapunov(ThreeDScene):
 
         self.dot1 = Dot(equilibrium1, color=YELLOW).move_to(self.ax.c2p(*equilibrium1))
         self.dot2 = Dot(equilibrium2, color=YELLOW).move_to(self.ax.c2p(*equilibrium2))
-        self.dot1.z_index = 1
-        self.dot2.z_index = 1
+        self.dot1.z_index = 2
+        self.dot2.z_index = 2
 
         self.play(
             ReplacementTransform(equilibrium_point1, self.dot1),
@@ -106,13 +110,14 @@ class ContinuousLyapunov(ThreeDScene):
         )
         self.wait(2)
 
-        ax_no_label = Axes(
+        ax_no_label = ThreeDAxes(
             x_range=[-1, 1, 0.5],
             y_range=[-1, 1, 0.5],
             x_length=2,
             y_length=2,
             tips=False,
-            axis_config=dict(tip_width=0.05, tip_height=0.05)
+            axis_config=dict(tip_width=0.05, tip_height=0.05),
+            z_axis_config=dict(stroke_opacity=0.0)
         ).scale(self.scaling_factor).shift(3 * RIGHT)
 
         self.play(Transform(self.ax, ax_no_label),
@@ -124,11 +129,13 @@ class ContinuousLyapunov(ThreeDScene):
     def add_vector_field(self):
         def color_scheme(p, v):
             c = self.ax.p2c(p)
-            v = self.vector_field(c)
+            v = self.f(c[:2])
             return np.linalg.norm(v)
 
-        vector_field = BetterStreamLines(
-            self.vector_field,
+        # TODO: Fix color when translating camera (should not change)
+
+        self.vector_field = BetterStreamLines(
+            self.f,
             x_range=[-1, 1, 0.1],
             y_range=[-1, 1, 0.1],
             padding=0.1,
@@ -137,12 +144,48 @@ class ContinuousLyapunov(ThreeDScene):
             color_scheme=color_scheme
         ).scale(self.scaling_factor).shift(self.ax.c2p(*ORIGIN))
 
-        self.add(vector_field)
-        vector_field.start_animation(warm_up=True, flow_speed=0.5)
-        self.wait(2 * vector_field.virtual_time / vector_field.flow_speed)
+        self.add(self.vector_field)
+        self.vector_field.start_animation(warm_up=True, flow_speed=0.5)
+        self.wait(2 * self.vector_field.virtual_time / self.vector_field.flow_speed)
 
-    def vector_field(self, x):
-        x, y = x[0], x[1]
+    def show_stable(self):
+        self.vector_field.end_animation()
+        self.wait(2)
+
+        stable_text = Text('Stable', font_size=24, color=GREEN).next_to(self.dot1, LEFT, aligned_edge=RIGHT)
+        unstable_text = Text('Unstable', font_size=24, color=RED).next_to(self.dot2, LEFT, aligned_edge=RIGHT)
+
+        self.play(self.dot1.animate.set_color(GREEN),
+                  self.dot2.animate.set_color(RED),
+                  FadeIn(stable_text),
+                  FadeIn(unstable_text))
+        self.wait(2)
+
+        self.play(self.dot1.animate.set_color(GREEN),
+                  self.dot2.animate.set_color(RED),
+                  FadeOut(stable_text),
+                  FadeOut(unstable_text),
+                  Uncreate(self.dot2))
+        self.wait(1)
+
+    def transition_to_3d(self):
+        self.move_camera(phi=PI / 3)
+        self.move_camera(frame_center=[0, 0, 2.0])
+        self.wait(2)
+
+    def add_lyapunov(self):
+        lyapunov_plane = Surface(
+            lambda u, v: self.ax.c2p(u, v, self.lyapunov(u, v)),
+            resolution=(100, 10),
+            v_range=[-1, 1],
+            u_range=[-1, 1],
+        )
+
+        self.play(FadeIn(lyapunov_plane), runtime=2)
+        self.wait(4)
+
+    def f(self, p):
+        x, y = p[0], p[1]
 
         # https://www.ndsu.edu/pubweb/~novozhil/Teaching/480%20Data/13.pdf
         return (-x + y ** 2) * RIGHT + (-2 * y + 3 * x ** 2) * UP
@@ -159,8 +202,8 @@ class ContinuousLyapunov(ThreeDScene):
 
         return width, height
 
-    def lyapunov(self, x):
-        return x[0] ** 2 / 2 + x[1] ** 2 / 4
+    def lyapunov(self, x, y):
+        return x ** 2 / 2 + y ** 2 / 4
 
-    def lyapunov_derivative(self, x):
-        return -x[0] ** 2 + x[0] * x[1] ** 2 - x[1] ** 2 + (3 / 2) * x[1] * x[0] ** 2
+    def lyapunov_derivative(self, x, y):
+        return -x ** 2 + x * y ** 2 - y ** 2 + (3 / 2) * y * x ** 2
